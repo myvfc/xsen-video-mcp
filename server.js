@@ -65,12 +65,18 @@ app.get("/health", (req, res) => {
 });
 
 /* -------------------------------------------------------------------------- */
-/*                                 HEARTBEAT                                   */
+/*                            KEEP-ALIVE HEARTBEAT                             */
 /* -------------------------------------------------------------------------- */
 
-setInterval(() => {
-  console.log("💓 Heartbeat: XSEN MCP is alive");
-}, 12000);
+// Self-ping every 5 minutes to prevent Railway sleep
+setInterval(async () => {
+  try {
+    const response = await fetch(`http://localhost:${PORT}/health`);
+    console.log("💓 Keep-alive ping:", response.ok ? "OK" : "FAILED");
+  } catch (err) {
+    console.log("💓 Keep-alive ping failed (server might be starting)");
+  }
+}, 5 * 60 * 1000); // Every 5 minutes
 
 /* -------------------------------------------------------------------------- */
 /*                            AUTH MIDDLEWARE                                  */
