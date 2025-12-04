@@ -14,7 +14,7 @@ const PLAYER_BASE = process.env.XSEN_PLAYER_URL || "https://player.xsen.fun";
 
 let videoDB = [];
 
-app.use(express.static("."));
+
 
 
 /* ------------------ Load Videos ------------------ */
@@ -34,6 +34,8 @@ async function loadVideos() {
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+app.use(express.static("."));
 
 /* ------------------ Serve manifest.json ------------------ */
 const __filename = fileURLToPath(import.meta.url);
