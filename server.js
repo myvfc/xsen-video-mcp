@@ -1,10 +1,26 @@
 import express from "express";
 import cors from "cors";
 import fetch from "node-fetch";
-import path from "path";
-import { fileURLToPath } from "url";
 
-const PORT = process.env.PORT;
+/* -------------------------------------------------------------------------- */
+/*                               EXPRESS SETUP                                */
+/* -------------------------------------------------------------------------- */
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+app.use(express.static(".")); // <-- REQUIRED so manifest.json is served
+
+/* -------------------------------------------------------------------------- */
+/*                          PORT (Railway Compatible)                         */
+/* -------------------------------------------------------------------------- */
+
+const PORT = process.env.PORT ?? 8080;
+
+/* -------------------------------------------------------------------------- */
+/*                            ENVIRONMENT VARIABLES                           */
+/* -------------------------------------------------------------------------- */
+
 const VIDEOS_URL =
   process.env.VIDEOS_URL ||
   "https://raw.githubusercontent.com/myvfc/video-db/main/videos.json";
@@ -14,10 +30,10 @@ const PLAYER_BASE = process.env.XSEN_PLAYER_URL || "https://player.xsen.fun";
 
 let videoDB = [];
 
+/* -------------------------------------------------------------------------- */
+/*                            LOAD videos.json                                */
+/* -------------------------------------------------------------------------- */
 
-
-
-/* ------------------ Load Videos ------------------ */
 async function loadVideos() {
   console.log("📡 Fetching videos.json…");
   try {
@@ -31,21 +47,10 @@ async function loadVideos() {
   }
 }
 
-const app = express();
-app.use(cors());
-app.use(express.json());
+/* -------------------------------------------------------------------------- */
+/*                                HEALTHCHECK                                 */
+/* -------------------------------------------------------------------------- */
 
-app.use(express.static("."));
-
-/* ------------------ Serve manifest.json ------------------ */
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-app.get("/manifest.json", (req, res) => {
-  res.sendFile(path.join(__dirname, "manifest.json"));
-});
-
-/* ------------------ Health ------------------ */
 app.get("/", (req, res) => {
   res.json({
     status: "ok",
@@ -55,26 +60,37 @@ app.get("/", (req, res) => {
   });
 });
 
-app.get("/health", (req, res) => res.status(200).send("OK"));
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
+});
 
-/* ------------------ Heartbeat ------------------ */
+/* -------------------------------------------------------------------------- */
+/*                                 HEARTBEAT                                   */
+/* -------------------------------------------------------------------------- */
+
 setInterval(() => {
   console.log("💓 Heartbeat: XSEN MCP is alive");
 }, 12000);
 
-/* ------------------ Auth ------------------ */
+/* -------------------------------------------------------------------------- */
+/*                            AUTH MIDDLEWARE                                  */
+/* -------------------------------------------------------------------------- */
+
 function requireAuth(req, res, next) {
   if (!AUTH_TOKEN) return next();
 
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
 
-  if (token && token === AUTH_TOKEN) return next();
+  if (token === AUTH_TOKEN) return next();
 
   return res.status(401).json({ error: "Unauthorized" });
 }
 
-/* ------------------ Helpers ------------------ */
+/* -------------------------------------------------------------------------- */
+/*                            HELPER: EXTRACT VIDEO ID                         */
+/* -------------------------------------------------------------------------- */
+
 function extractVideoId(url = "") {
   if (!url) return "";
   if (url.includes("v=")) return url.split("v=")[1].split("&")[0];
@@ -82,7 +98,10 @@ function extractVideoId(url = "") {
   return "";
 }
 
-/* ------------------ Tool Handler ------------------ */
+/* -------------------------------------------------------------------------- */
+/*                        TOOL: xsen_search IMPLEMENTATION                     */
+/* -------------------------------------------------------------------------- */
+
 async function handleXsenSearch(params) {
   const query = params?.query?.toLowerCase() || "";
   console.log(`🔍 xsen_search: "${query}"`);
@@ -109,7 +128,7 @@ async function handleXsenSearch(params) {
     return `No XSEN videos found for "${query}". Try another moment or matchup.`;
   }
 
-  let responseText = "";
+  let response = "";
 
   for (const v of matches) {
     const url = v["URL"] || "";
@@ -121,9 +140,9 @@ async function handleXsenSearch(params) {
 
     const playerUrl = `${PLAYER_BASE}?v=${videoId}`;
 
-    responseText += `\n**${title}**\n\n`;
+    response += `\n**${title}**\n\n`;
 
-    responseText += `
+    response += `
 <div style="position:relative; width:100%; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:12px; margin-bottom:12px;">
   <iframe
     src="${playerUrl}"
@@ -131,17 +150,19 @@ async function handleXsenSearch(params) {
     allowfullscreen
     loading="lazy"
   ></iframe>
-</div>
-`.trim() + "\n\n";
+</div>\n\n`;
 
-    if (desc) responseText += `*${desc}*\n\n`;
+    if (desc) response += `*${desc}*\n\n`;
   }
 
-  responseText += "Boomer Sooner! Want another clip?";
-  return responseText;
+  response += "Boomer Sooner! Want another clip?";
+  return response;
 }
 
-/* ------------------ JSON-RPC MCP ------------------ */
+/* -------------------------------------------------------------------------- */
+/*                                MCP ENDPOINT                                 */
+/* -------------------------------------------------------------------------- */
+
 app.post("/mcp", requireAuth, async (req, res) => {
   try {
     const { jsonrpc, method, id, params } = req.body || {};
@@ -187,8 +208,7 @@ app.post("/mcp", requireAuth, async (req, res) => {
                 properties: {
                   query: {
                     type: "string",
-                    description:
-                      "Search phrase (e.g., '2025 OU Alabama highlights')",
+                    description: "Search phrase (e.g., 'Baker Mayfield highlights')",
                   },
                 },
                 required: ["query"],
@@ -237,8 +257,12 @@ app.post("/mcp", requireAuth, async (req, res) => {
   }
 });
 
+/* -------------------------------------------------------------------------- */
+/*                              START THE SERVER                               */
+/* -------------------------------------------------------------------------- */
+
 app.listen(PORT, "0.0.0.0", () => {
-console.log(`🚀 XSEN Video MCP running on port ${PORT}`);
+  console.log(`🚀 XSEN Video MCP running on port ${PORT}`);
 
   setTimeout(() => {
     loadVideos().then(() => {
