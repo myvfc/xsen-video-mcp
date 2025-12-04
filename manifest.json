@@ -1,0 +1,21 @@
+{
+  "name": "XSEN Video MCP",
+  "version": "1.0.0",
+  "description": "XSEN-only search tool for OU Sooners video playback",
+  "tools": [
+    {
+      "name": "xsen_search",
+      "description": "Search OU Sooners video highlights and return video IDs",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "User search query for OU videos"
+          }
+        },
+        "required": ["query"]
+      }
+    }
+  ]
+}
