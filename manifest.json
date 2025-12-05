@@ -5,10 +5,10 @@
   "author": "XSEN Network",
   "license": "MIT",
 
-  "command": {
-    "type": "http",
-    "url": "https://xsen-video-mcp-production.up.railway.app/mcp"
-  },
+ "command": {
+  "type": "http",
+  "url": "https://xsen-mcp-production.up.railway.app/mcp"
+},
 
   "mcp": {
     "version": "2024-11-05",
