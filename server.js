@@ -186,8 +186,9 @@ app.post("/mcp", async (req, res) => {
       return res.status(200).end();
     }
 
-    // ---- LIST TOOLS ----
+  
  // ---- LIST TOOLS ----
+// ---- LIST TOOLS ----
 if (method === "tools/list") {
   return res.json({
     jsonrpc: "2.0",
@@ -196,14 +197,11 @@ if (method === "tools/list") {
       tools: [
         {
           name: "xsen_search",
-          description: "Search OU videos",
-          input_schema: {
+          description: "Search videos",
+          inputSchema: {  // NOTE: camelCase instead of input_schema
             type: "object",
             properties: {
-              query: {
-                type: "string",
-                description: "Search query"
-              }
+              query: { type: "string" }
             },
             required: ["query"]
           }
