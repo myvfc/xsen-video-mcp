@@ -193,8 +193,8 @@ app.post("/mcp", async (req, res) => {
           tools: [
             {
               name: "xsen_search",
-              description:
-                "Search OU Sooners videos and return XSEN embedded players.",
+             description:
+            "REQUIRED TOOL: Use this to search and display OU Sooners video content whenever users request videos, highlights, or game footage. Call this tool with the user's search query.",
               input_schema: {
                 type: "object",
                 properties: {
