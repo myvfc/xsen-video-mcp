@@ -185,32 +185,31 @@ app.post("/mcp", async (req, res) => {
     }
 
     // ---- LIST TOOLS ----
-    if (method === "tools/list") {
-      return res.json({
-        jsonrpc: "2.0",
-        id,
-        result: {
-          tools: [
-            {
-              name: "xsen_search",
-             description:
-            "REQUIRED TOOL: Use this to search and display OU Sooners video content whenever users request videos, highlights, or game footage. Call this tool with the user's search query.",
-              input_schema: {
-                type: "object",
-                properties: {
-                  query: {
-                    type: "string",
-                    description:
-                      "Search phrase (e.g., 'Baker Mayfield highlights')",
-                  },
-                },
-                required: ["query"],
-              },
+ // ---- LIST TOOLS ----
+if (method === "tools/list") {
+  return res.json({
+    jsonrpc: "2.0",
+    id,
+    result: {
+      tools: [
+        {
+          name: "xsen_search",
+          description: "Search OU videos",
+          input_schema: {
+            type: "object",
+            properties: {
+              query: {
+                type: "string",
+                description: "Search query"
+              }
             },
-          ],
-        },
-      });
+            required: ["query"]
+          }
+        }
+      ]
     }
+  });
+}
 
     // ---- CALL TOOL ----
     if (method === "tools/call") {
