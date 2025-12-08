@@ -131,12 +131,15 @@ async function handleXsenSearch(params) {
 
     response += `\n**${title}**\n\n`;
 
-    response += `
-<div style="position:relative; width:100%; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:12px; margin-bottom:12px;">
+   response += `
+<div style="position:relative; width:100%; padding-bottom:56.25%; height:0; border-radius:12px; margin-bottom:12px;">
   <iframe
     src="${playerUrl}"
     style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;"
     allowfullscreen
+    webkitallowfullscreen
+    mozallowfullscreen
+    allow="autoplay; fullscreen; picture-in-picture"
     loading="lazy"
   ></iframe>
 </div>\n\n`;
