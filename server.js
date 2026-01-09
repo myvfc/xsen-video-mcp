@@ -88,7 +88,12 @@ app.get("/videos", (req, res) => {
     .filter((v) => {
       const title = (v["OU Sooners videos"] || "").toLowerCase();
       const desc = (v["Description"] || "").toLowerCase();
-      return title.includes(query) || desc.includes(query);
+    const q = query.split(" ");
+
+return q.some(word =>
+  title.includes(word) || desc.includes(word)
+);
+
     })
     .slice(0, limit)
     .map((v) => {
