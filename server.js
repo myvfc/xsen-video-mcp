@@ -64,6 +64,55 @@ app.get("/health", (req, res) => {
 });
 
 /* -------------------------------------------------------------------------- */
+/*                        ✅ BROWSER-SAFE VIDEO API                            */
+/* -------------------------------------------------------------------------- */
+/*  This endpoint is for the XSEN frontend ONLY.
+    It does NOT expose MCP auth.
+    It reuses the already-loaded videoDB. */
+
+app.get("/videos", (req, res) => {
+  const query = (req.query.query || "").toLowerCase();
+  const limit = Number(req.query.limit) || 3;
+
+  if (!query) {
+    return res.json({ results: [] });
+  }
+
+  if (!Array.isArray(videoDB) || videoDB.length === 0) {
+    return res.status(503).json({
+      error: "Video library still loading"
+    });
+  }
+
+  const matches = videoDB
+    .filter((v) => {
+      const title = (v["OU Sooners videos"] || "").toLowerCase();
+      const desc = (v["Description"] || "").toLowerCase();
+      return title.includes(query) || desc.includes(query);
+    })
+    .slice(0, limit)
+    .map((v) => {
+      const url = v["URL"] || "";
+      const title = v["OU Sooners videos"] || "OU Video";
+      const desc = v["Description"] || "";
+
+      let videoId = "";
+      if (url.includes("v=")) videoId = url.split("v=")[1].split("&")[0];
+      else if (url.includes("youtu.be/")) videoId = url.split("youtu.be/")[1];
+
+      return {
+        title,
+        thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+        duration: "—",
+        url: `${PLAYER_BASE}?v=${videoId}`,
+        description: desc
+      };
+    });
+
+  res.json({ results: matches });
+});
+
+/* -------------------------------------------------------------------------- */
 /*                            KEEP-ALIVE HEARTBEAT                             */
 /* -------------------------------------------------------------------------- */
 
@@ -75,78 +124,6 @@ setInterval(async () => {
     console.log("💓 Keep-alive ping failed (server might be starting)");
   }
 }, 5 * 60 * 1000);
-
-/* -------------------------------------------------------------------------- */
-/*                            HELPER: EXTRACT VIDEO ID                         */
-/* -------------------------------------------------------------------------- */
-
-function extractVideoId(url = "") {
-  if (!url) return "";
-  if (url.includes("v=")) return url.split("v=")[1].split("&")[0];
-  if (url.includes("youtu.be/")) return url.split("youtu.be/")[1].split("?")[0];
-  return "";
-}
-
-/* -------------------------------------------------------------------------- */
-/*                        TOOL: xsen_search IMPLEMENTATION                     */
-/* -------------------------------------------------------------------------- */
-
-async function handleXsenSearch(params) {
-  const query = params?.query?.toLowerCase() || "";
-  console.log(`🔍 xsen_search: "${query}"`);
-
-  if (!query) {
-    return "Give me something to search — a game, season, player, or rivalry.";
-  }
-
-  if (!Array.isArray(videoDB) || videoDB.length === 0) {
-    return "Video library is still loading — try again in a few seconds.";
-  }
-
-  const matches = videoDB
-    .filter((v) => {
-      const title = (v["OU Sooners videos"] || "").toLowerCase();
-      const desc = (v["Description"] || "").toLowerCase();
-      return title.includes(query) || desc.includes(query);
-    })
-    .slice(0, 3);
-
-  console.log(`✅ Found ${matches.length} videos`);
-
-  if (matches.length === 0) {
-    return `No XSEN videos found for "${query}". Try another moment or matchup.`;
-  }
-
-  let response = "";
-
-  for (const v of matches) {
-    const url = v["URL"] || "";
-    const title = v["OU Sooners videos"] || "OU Video";
-    const desc = v["Description"] || "";
-    const videoId = extractVideoId(url);
-
-    if (!videoId) continue;
-
-    const playerUrl = `${PLAYER_BASE}?v=${videoId}`;
-
-    response += `\n**${title}**\n\n`;
-
-    response += `
-<div style="position:relative; width:100%; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:12px; margin-bottom:12px;">
-  <iframe
-    src="${playerUrl}"
-    style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;"
-    allowfullscreen
-    loading="lazy"
-  ></iframe>
-</div>\n\n`;
-
-    if (desc) response += `*${desc}*\n\n`;
-  }
-
-  response += "Boomer Sooner! Want another clip?";
-  return response;
-}
 
 /* -------------------------------------------------------------------------- */
 /*                                MCP ENDPOINT                                 */
@@ -170,7 +147,6 @@ app.post("/mcp", async (req, res) => {
 
     console.log(`🔧 MCP: ${method}`);
 
-    // ---- JSON-RPC VERSION CHECK ----
     if (jsonrpc !== "2.0") {
       return res.json({
         jsonrpc: "2.0",
@@ -179,7 +155,6 @@ app.post("/mcp", async (req, res) => {
       });
     }
 
-    // ---- INITIALIZE ----
     if (method === "initialize") {
       return res.json({
         jsonrpc: "2.0",
@@ -196,7 +171,6 @@ app.post("/mcp", async (req, res) => {
       return res.status(200).end();
     }
 
-    // ---- LIST TOOLS ----
     if (method === "tools/list") {
       return res.json({
         jsonrpc: "2.0",
@@ -205,13 +179,14 @@ app.post("/mcp", async (req, res) => {
           tools: [
             {
               name: "xsen_search",
-              description: "Search OU Sooners video highlights and return XSEN embedded players. Use this when users request videos, highlights, or game footage.",
+              description:
+                "Search OU Sooners video highlights and return XSEN embedded players.",
               inputSchema: {
                 type: "object",
                 properties: {
                   query: {
                     type: "string",
-                    description: "Search query for OU videos (e.g. 'Baker Mayfield highlights')"
+                    description: "Search query for OU videos"
                   }
                 },
                 required: ["query"]
@@ -222,18 +197,7 @@ app.post("/mcp", async (req, res) => {
       });
     }
 
-    // ---- CALL TOOL ----
     if (method === "tools/call") {
-      const toolName = params?.name;
-
-      if (toolName !== "xsen_search") {
-        return res.json({
-          jsonrpc: "2.0",
-          id,
-          error: { code: -32601, message: `Unknown tool: ${toolName}` },
-        });
-      }
-
       const args = params?.arguments || {};
       const text = await handleXsenSearch(args);
 
@@ -246,7 +210,6 @@ app.post("/mcp", async (req, res) => {
       });
     }
 
-    // ---- UNKNOWN METHOD ----
     return res.json({
       jsonrpc: "2.0",
       id,
