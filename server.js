@@ -84,35 +84,41 @@ app.get("/videos", (req, res) => {
     });
   }
 
-  const matches = videoDB
-    .filter((v) => {
-      const title = (v["OU Sooners videos"] || "").toLowerCase();
-      const desc = (v["Description"] || "").toLowerCase();
-    const q = query.split(" ");
+const matches = videoDB
+  .map((v) => {
+    const title = (v["OU Sooners videos"] || "").toLowerCase();
+    const desc = (v["Description"] || "").toLowerCase();
+    const qWords = query.split(" ").filter(Boolean);
 
-return q.some(word =>
-  title.includes(word) || desc.includes(word)
-);
+    let score = 0;
+    for (const word of qWords) {
+      if (title.includes(word)) score += 2;
+      if (desc.includes(word)) score += 1;
+    }
 
-    })
-    .slice(0, limit)
-    .map((v) => {
-      const url = v["URL"] || "";
-      const title = v["OU Sooners videos"] || "OU Video";
-      const desc = v["Description"] || "";
+    return { ...v, _score: score };
+  })
+  .filter((v) => v._score > 0) // discard 0-match items
+  .sort((a, b) => b._score - a._score) // highest scores first
+  .slice(0, limit)
+  .map((v) => {
+    const url = v["URL"] || "";
+    const title = v["OU Sooners videos"] || "OU Video";
+    const desc = v["Description"] || "";
 
-      let videoId = "";
-      if (url.includes("v=")) videoId = url.split("v=")[1].split("&")[0];
-      else if (url.includes("youtu.be/")) videoId = url.split("youtu.be/")[1];
+    let videoId = "";
+    if (url.includes("v=")) videoId = url.split("v=")[1].split("&")[0];
+    else if (url.includes("youtu.be/")) videoId = url.split("youtu.be/")[1];
 
-      return {
-        title,
-        thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
-        duration: "—",
-        url: `${PLAYER_BASE}?v=${videoId}`,
-        description: desc
-      };
-    });
+    return {
+      title,
+      thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+      duration: "—",
+      url: `${PLAYER_BASE}?v=${videoId}`,
+      description: desc
+    };
+  });
+
 
   res.json({ results: matches });
 });
